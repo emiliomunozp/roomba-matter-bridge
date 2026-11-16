@@ -11,14 +11,22 @@ import { RvcOperationalState } from '@matter/types/clusters/rvc-operational-stat
 import { PowerSource } from '@matter/types/clusters/power-source';
 import { RoombaController } from './roomba.js';
 import { setRoomba } from './shared.mjs';
-import { RoombaRunModeServer, RoombaOperationalStateServer, RoombaIdentifyServer } from './servers.mjs';
+import {
+  RoombaRunModeServer,
+  RoombaOperationalStateServer,
+  RoombaIdentifyServer,
+  RoombaCleanModeServer,
+} from './servers.mjs';
 import {
   supportedRunModes,
+  supportedCleanModes,
   operationalStateList,
   toMatterState,
   toCurrentRunMode,
   toBattery,
+  passesToCleanMode,
   RUN_MODE_IDLE,
+  CLEAN_MODE_AUTO,
 } from './mapping.mjs';
 
 const cfg = JSON.parse(readFileSync(new URL('./config.json', import.meta.url)));
@@ -74,6 +82,7 @@ const vacuum = new Endpoint(
     RoombaRunModeServer,
     OperationalStateServer,
     RoombaIdentifyServer,
+    RoombaCleanModeServer,
     BatteryPowerSourceServer,
   ),
   {
@@ -81,6 +90,10 @@ const vacuum = new Endpoint(
     rvcRunMode: {
       supportedModes: supportedRunModes,
       currentMode: RUN_MODE_IDLE,
+    },
+    rvcCleanMode: {
+      supportedModes: supportedCleanModes,
+      currentMode: CLEAN_MODE_AUTO,
     },
     rvcOperationalState: {
       operationalStateList,
@@ -115,8 +128,9 @@ async function pushState(st) {
   if (!st.connected) return;
   const { operationalState, operationalError } = toMatterState(st);
   const currentMode = toCurrentRunMode(st);
+  const cleanMode = passesToCleanMode(st.passes);
   const bat = toBattery(st);
-  const snapshot = JSON.stringify({ operationalState, operationalError, currentMode, bat });
+  const snapshot = JSON.stringify({ operationalState, operationalError, currentMode, cleanMode, bat });
   if (snapshot === lastJson) return;
   lastJson = snapshot;
 
@@ -130,9 +144,10 @@ async function pushState(st) {
     await vacuum.set({
       rvcOperationalState: { operationalState, operationalError },
       rvcRunMode: { currentMode },
+      rvcCleanMode: { currentMode: cleanMode },
       powerSource,
     });
-    log(`matter<-roomba  state=${operationalState} err=${operationalError.errorStateId} mode=${currentMode} bat=${st.batPct}`);
+    log(`matter<-roomba  state=${operationalState} err=${operationalError.errorStateId} run=${currentMode} clean=${cleanMode} bat=${st.batPct}`);
   } catch (e) {
     log('pushState error: ' + e.message);
   }

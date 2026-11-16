@@ -1,11 +1,12 @@
 // servers.mjs — custom RVC behavior servers that drive the real Roomba.
 import { RvcRunModeServer } from '@matter/main/behaviors/rvc-run-mode';
 import { RvcOperationalStateServer } from '@matter/main/behaviors/rvc-operational-state';
+import { RvcCleanModeServer } from '@matter/main/behaviors/rvc-clean-mode';
 import { IdentifyServer } from '@matter/main/behaviors/identify';
 import { RvcOperationalState } from '@matter/types/clusters/rvc-operational-state';
 import { OperationalState } from '@matter/types/clusters/operational-state';
 import { ModeBase } from '@matter/types/clusters/mode-base';
-import { RUN_MODE_CLEAN, RUN_MODE_IDLE } from './mapping.mjs';
+import { RUN_MODE_CLEAN, RUN_MODE_IDLE, cleanModeToPasses } from './mapping.mjs';
 import { getRoomba } from './shared.mjs';
 
 // Identify ("Locate" in Apple Home): play the robot's locate sound.
@@ -17,6 +18,19 @@ export class RoombaIdentifyServer extends IdentifyServer {
   #onIdentify() {
     const roomba = getRoomba();
     if (roomba) roomba.locate().catch((e) => console.log('identify/locate error: ' + e.message));
+  }
+}
+
+// RvcCleanMode: selecting a mode changes the robot's cleaning-passes preference.
+export class RoombaCleanModeServer extends RvcCleanModeServer {
+  changeToMode({ newMode }) {
+    const result = super.changeToMode({ newMode }); // validates + updates currentMode
+    if (result.status !== ModeBase.ModeChangeStatus.Success) return result;
+    const roomba = getRoomba();
+    if (roomba) {
+      roomba.setPasses(cleanModeToPasses(newMode)).catch((e) => console.log('cleanMode error: ' + e.message));
+    }
+    return result;
   }
 }
 

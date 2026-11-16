@@ -39,6 +39,7 @@ Apple Home  ──Matter──▶  this bridge (Node.js on the Pi)  ──local 
 | Pause | `RvcOperationalState.pause` | `pause()` |
 | Return to dock | `RvcOperationalState.goHome` | `dock()` |
 | Locate (sound) | `Identify` | `find()` |
+| Cleaning mode | `RvcCleanMode` → Auto / One pass / Two passes | `setCleaningPasses*()` |
 | Status / battery | `RvcOperationalState` / `PowerSource` | `cleanMissionStatus`, `batPct` |
 
 ## Requirements
@@ -126,7 +127,6 @@ Robot `cleanMissionStatus.phase` → Matter `RvcOperationalState`:
 
 ## Roadmap
 
-- **RvcCleanMode** — one-pass / two-pass (maps to the robot's `setPreferences`).
 - **ServiceArea** — per-room cleaning for mapped robots.
 - **PowerSource** refinements and a dedicated endpoint if a controller needs it.
 
@@ -138,7 +138,7 @@ Scheduling is intentionally left to Apple Home automations rather than the robot
 |---|---|
 | `index.mjs` | Entry point: builds the Matter node + endpoint, wires state sync |
 | `roomba.js` | `dorita980` controller: connection, auto-reconnect, commands, state |
-| `servers.mjs` | Custom RVC behavior servers (run mode, operational state, identify) |
+| `servers.mjs` | Custom RVC behavior servers (run mode, operational state, clean mode, identify) |
 | `mapping.mjs` | Roomba ⇄ Matter enum/state translation |
 | `shared.mjs` | Singleton bridge from command handlers to the controller |
 | `systemd/roomba-matter.service` | systemd unit |

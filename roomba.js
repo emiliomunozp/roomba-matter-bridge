@@ -42,6 +42,7 @@ export class RoombaController extends EventEmitter {
       returning: false,
       paused: false,
       error: null,        // robot error code (0 = none)
+      passes: 'auto',     // 'auto' | 'one' | 'two' (cleaning passes preference)
     };
 
     this._robot = null;
@@ -93,6 +94,14 @@ export class RoombaController extends EventEmitter {
     if (cms) {
       if (cms.phase) this.state.phase = cms.phase;
       if (typeof cms.error === 'number') this.state.error = cms.error;
+    }
+
+    // Cleaning passes preference (reported at the root of the robot state).
+    if (typeof data.noAutoPasses === 'boolean' || typeof data.twoPass === 'boolean') {
+      if (typeof data.noAutoPasses === 'boolean') this._noAutoPasses = data.noAutoPasses;
+      if (typeof data.twoPass === 'boolean') this._twoPass = data.twoPass;
+      if (this._noAutoPasses === false) this.state.passes = 'auto';
+      else this.state.passes = this._twoPass ? 'two' : 'one';
     }
 
     // Derive high-level flags from phase + charging telemetry.
@@ -168,6 +177,15 @@ export class RoombaController extends EventEmitter {
   async locate() {
     if (!this._ready()) throw new Error('roomba not connected');
     return this._robot.find();
+  }
+
+  // Set the cleaning-passes preference (maps the Matter RvcCleanMode command).
+  async setPasses(mode) {
+    if (!this._ready()) throw new Error('roomba not connected');
+    if (mode === 'auto') return this._robot.setCleaningPassesAuto();
+    if (mode === 'one') return this._robot.setCleaningPassesOne();
+    if (mode === 'two') return this._robot.setCleaningPassesTwo();
+    throw new Error('unknown passes mode: ' + mode);
   }
 
   destroy() {

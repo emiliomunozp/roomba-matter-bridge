@@ -1,6 +1,7 @@
 // mapping.mjs — translate Roomba telemetry <-> Matter RVC enums.
 import { RvcOperationalState } from '@matter/types/clusters/rvc-operational-state';
 import { RvcRunMode } from '@matter/types/clusters/rvc-run-mode';
+import { RvcCleanMode } from '@matter/types/clusters/rvc-clean-mode';
 import { PowerSource } from '@matter/types/clusters/power-source';
 import { Phase } from './roomba.js';
 
@@ -15,6 +16,41 @@ export const supportedRunModes = [
   { label: 'Idle', mode: RUN_MODE_IDLE, modeTags: [{ value: RvcRunMode.ModeTag.Idle }] },
   { label: 'Clean', mode: RUN_MODE_CLEAN, modeTags: [{ value: RvcRunMode.ModeTag.Cleaning }] },
 ];
+
+// RvcCleanMode supported modes = cleaning passes. Each must carry a Vacuum (or Mop)
+// tag. These map to the Roomba's noAutoPasses / twoPass preference.
+export const CLEAN_MODE_AUTO = 0;
+export const CLEAN_MODE_ONE = 1;
+export const CLEAN_MODE_TWO = 2;
+export const supportedCleanModes = [
+  {
+    label: 'Automatico',
+    mode: CLEAN_MODE_AUTO,
+    modeTags: [{ value: RvcCleanMode.ModeTag.Vacuum }, { value: RvcCleanMode.ModeTag.Auto }],
+  },
+  {
+    label: 'Una pasada',
+    mode: CLEAN_MODE_ONE,
+    modeTags: [{ value: RvcCleanMode.ModeTag.Vacuum }, { value: RvcCleanMode.ModeTag.Quick }],
+  },
+  {
+    label: 'Dos pasadas',
+    mode: CLEAN_MODE_TWO,
+    modeTags: [{ value: RvcCleanMode.ModeTag.Vacuum }, { value: RvcCleanMode.ModeTag.DeepClean }],
+  },
+];
+
+// Matter clean mode <-> Roomba passes string.
+export function cleanModeToPasses(mode) {
+  if (mode === CLEAN_MODE_ONE) return 'one';
+  if (mode === CLEAN_MODE_TWO) return 'two';
+  return 'auto';
+}
+export function passesToCleanMode(passes) {
+  if (passes === 'one') return CLEAN_MODE_ONE;
+  if (passes === 'two') return CLEAN_MODE_TWO;
+  return CLEAN_MODE_AUTO;
+}
 
 // Full set of operational states we may report (must include an Error entry).
 export const operationalStateList = [
