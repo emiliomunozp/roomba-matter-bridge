@@ -1,0 +1,11 @@
+# Secrets — holds the robot's local BLID + password. Never commit.
+config.json
+
+# Dependencies
+node_modules/
+
+# Matter commissioning data (fabrics, keys) — host-specific, never commit.
+.matter/
+
+# Logs
+*.log

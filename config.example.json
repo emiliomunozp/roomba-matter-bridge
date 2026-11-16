@@ -1,0 +1,12 @@
+{
+  "name": "Roomba 960",
+  "host": "192.168.0.10",
+  "blid": "XXXXXXXXXXXXXXXX",
+  "password": "PUT-YOUR-ROBOT-LOCAL-PASSWORD-HERE",
+  "serial": "YOUR-ROBOT-SERIAL",
+  "sw": "2.4.17-138",
+  "port": 5540,
+  "passcode": 20202021,
+  "discriminator": 3840,
+  "productId": 38401
+}

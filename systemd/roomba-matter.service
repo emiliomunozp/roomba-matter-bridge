@@ -1,0 +1,18 @@
+[Unit]
+Description=Roomba 960 Matter Bridge (Robotic Vacuum Cleaner)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=emiliomunozp
+Group=emiliomunozp
+Environment=HOME=/home/emiliomunozp
+WorkingDirectory=/opt/roomba-matter
+ExecStart=/usr/bin/node /opt/roomba-matter/index.mjs
+Restart=on-failure
+RestartSec=5
+# Matter needs mDNS (UDP 5353) and its operational port (UDP 5540).
+
+[Install]
+WantedBy=multi-user.target

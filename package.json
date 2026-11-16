@@ -1,0 +1,28 @@
+{
+  "name": "roomba-matter-bridge",
+  "version": "1.0.0",
+  "description": "Expose an iRobot Roomba 900-series to Apple Home (and any Matter controller) as a native Matter Robotic Vacuum Cleaner, driven over the local API via dorita980.",
+  "type": "module",
+  "main": "index.mjs",
+  "scripts": {
+    "start": "node index.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "keywords": [
+    "matter",
+    "homekit",
+    "apple-home",
+    "roomba",
+    "irobot",
+    "dorita980",
+    "robotic-vacuum",
+    "smart-home"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "@matter/main": "^0.18.0",
+    "dorita980": "^4.0.0"
+  }
+}
