@@ -48,6 +48,7 @@ export class RoombaController extends EventEmitter {
     this._robot = null;
     this._reconnectTimer = null;
     this._reconnectDelay = 5000;
+    this._pending = null;   // last command issued while offline, replayed on reconnect
     this._destroyed = false;
     this._connect();
   }
@@ -67,6 +68,15 @@ export class RoombaController extends EventEmitter {
       this._reconnectDelay = 5000;
       this.log('roomba: connected');
       this.emit('update', this.state);
+      // Replay a command that was issued while the robot was asleep/offline.
+      if (this._pending) {
+        const p = this._pending;
+        this._pending = null;
+        this.log(`roomba: replaying queued ${p.label}`);
+        Promise.resolve()
+          .then(() => p.action(this._robot))
+          .catch((e) => this.log(`roomba: queued ${p.label} failed: ${e.message}`));
+      }
     });
     this._robot.on('close', () => {
       if (this.state.connected) this.log('roomba: connection closed');
@@ -142,50 +152,73 @@ export class RoombaController extends EventEmitter {
     return this._robot && this.state.connected;
   }
 
+  // Force an immediate reconnect attempt (the 960 drops its socket when it sleeps
+  // on the dock; without this a command would wait for the slow backoff timer).
+  _kick() {
+    if (this._destroyed || this.state.connected) return;
+    this._clearReconnect();
+    this._reconnectDelay = 5000;
+    this._connect();
+  }
+
+  // Run a robot action. If the robot is connected, fire it now (non-blocking from
+  // the caller's point of view). If it's asleep/offline, remember the intent and
+  // force a reconnect — the action is replayed from the 'connect' handler. Either
+  // way this resolves promptly, so the Matter command handler can ack Siri/Home
+  // instantly instead of waiting for the robot's MQTT round-trip.
+  _exec(label, action) {
+    if (this._ready()) {
+      return Promise.resolve()
+        .then(() => action(this._robot))
+        .catch((e) => this.log(`roomba: ${label} failed: ${e.message}`));
+    }
+    this.log(`roomba: ${label} queued (offline) — forcing reconnect`);
+    this._pending = { label, action };
+    this._kick();
+    return Promise.resolve();
+  }
+
   // --- Commands (all best-effort; the robot echoes real state back via 'state') ---
 
-  async start() {
-    if (!this._ready()) throw new Error('roomba not connected');
+  start() {
     // If paused mid-floor, resume; otherwise start a fresh mission.
-    if (this.state.paused) return this._robot.resume();
-    return this._robot.clean();
+    const resume = this.state.paused;
+    return this._exec(resume ? 'resume' : 'clean', (r) => (resume ? r.resume() : r.clean()));
   }
 
-  async pause() {
-    if (!this._ready()) throw new Error('roomba not connected');
-    return this._robot.pause();
+  pause() {
+    return this._exec('pause', (r) => r.pause());
   }
 
-  async dock() {
-    if (!this._ready()) throw new Error('roomba not connected');
-    // The 900-series needs to be paused/stopped before it will accept "dock".
-    if (this.state.running) {
-      try {
-        await this._robot.pause();
-        await new Promise((r) => setTimeout(r, 1500));
-      } catch (_) {}
-    }
-    return this._robot.dock();
+  dock() {
+    const wasRunning = this.state.running;
+    return this._exec('dock', async (r) => {
+      // The 900-series needs to be paused/stopped before it will accept "dock".
+      if (wasRunning) {
+        try {
+          await r.pause();
+          await new Promise((res) => setTimeout(res, 1500));
+        } catch (_) {}
+      }
+      return r.dock();
+    });
   }
 
-  async stop() {
-    if (!this._ready()) throw new Error('roomba not connected');
-    return this._robot.stop();
+  stop() {
+    return this._exec('stop', (r) => r.stop());
   }
 
   // Make the robot play its locate sound (maps the Matter Identify command).
-  async locate() {
-    if (!this._ready()) throw new Error('roomba not connected');
-    return this._robot.find();
+  locate() {
+    return this._exec('locate', (r) => r.find());
   }
 
   // Set the cleaning-passes preference (maps the Matter RvcCleanMode command).
-  async setPasses(mode) {
-    if (!this._ready()) throw new Error('roomba not connected');
-    if (mode === 'auto') return this._robot.setCleaningPassesAuto();
-    if (mode === 'one') return this._robot.setCleaningPassesOne();
-    if (mode === 'two') return this._robot.setCleaningPassesTwo();
-    throw new Error('unknown passes mode: ' + mode);
+  setPasses(mode) {
+    if (mode === 'auto') return this._exec('passes-auto', (r) => r.setCleaningPassesAuto());
+    if (mode === 'one') return this._exec('passes-one', (r) => r.setCleaningPassesOne());
+    if (mode === 'two') return this._exec('passes-two', (r) => r.setCleaningPassesTwo());
+    return Promise.reject(new Error('unknown passes mode: ' + mode));
   }
 
   destroy() {

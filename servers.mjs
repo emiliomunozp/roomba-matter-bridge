@@ -58,40 +58,29 @@ export class RoombaRunModeServer extends RvcRunModeServer {
 }
 
 // RvcOperationalState: the three RVC commands Apple Home drives.
+//
+// These ACK immediately (optimistic state update) and dispatch the robot command
+// in the background, so Siri/Home never wait on the Roomba's MQTT round-trip. The
+// real state syncs back a moment later via pushState and corrects it if needed.
 export class RoombaOperationalStateServer extends RvcOperationalStateServer {
-  async pause() {
+  pause() {
+    this.state.operationalState = OpState.Paused;
     const roomba = getRoomba();
-    try {
-      if (roomba) await roomba.pause();
-      this.state.operationalState = OpState.Paused;
-      return ok();
-    } catch (e) {
-      console.log('pause error: ' + e.message);
-      return fail(Err.CommandInvalidInState);
-    }
+    if (roomba) roomba.pause().catch((e) => console.log('pause error: ' + e.message));
+    return ok();
   }
 
-  async resume() {
+  resume() {
+    this.state.operationalState = OpState.Running;
     const roomba = getRoomba();
-    try {
-      if (roomba) await roomba.start();
-      this.state.operationalState = OpState.Running;
-      return ok();
-    } catch (e) {
-      console.log('resume error: ' + e.message);
-      return fail(Err.UnableToStartOrResume);
-    }
+    if (roomba) roomba.start().catch((e) => console.log('resume error: ' + e.message));
+    return ok();
   }
 
-  async goHome() {
+  goHome() {
+    this.state.operationalState = OpState.SeekingCharger;
     const roomba = getRoomba();
-    try {
-      if (roomba) await roomba.dock();
-      this.state.operationalState = OpState.SeekingCharger;
-      return ok();
-    } catch (e) {
-      console.log('goHome error: ' + e.message);
-      return fail(Err.UnableToCompleteOperation);
-    }
+    if (roomba) roomba.dock().catch((e) => console.log('goHome error: ' + e.message));
+    return ok();
   }
 }
