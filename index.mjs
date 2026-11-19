@@ -122,6 +122,17 @@ const vacuum = new Endpoint(
 
 await server.add(vacuum);
 
+// Explicitly associate the battery with the vacuum endpoint. Per the Matter
+// spec an empty EndpointList is valid for a whole-node battery, but Apple Home's
+// robotic-vacuum card appears to only track/refresh the battery when the
+// PowerSource's EndpointList names the application endpoint it powers.
+try {
+  await vacuum.set({ powerSource: { endpointList: [vacuum.number] } });
+  log('powerSource.endpointList set to [' + vacuum.number + ']');
+} catch (e) {
+  log('could not set powerSource.endpointList: ' + e.message);
+}
+
 // --- Keep Matter attributes in sync with the real robot -------------------
 let lastJson = '';
 async function pushState(st) {
